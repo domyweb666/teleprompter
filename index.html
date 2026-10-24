@@ -125,7 +125,9 @@ section h2 { margin: 0 0 10px; font-size: 12px; font-weight: 600; letter-spacing
 .guide::after { content: ""; position: absolute; right: max(4px, env(safe-area-inset-right, 0px)); top: -9px; border: 9px solid transparent; border-right: 12px solid var(--tally); }
 
 /* ---------- Prompter ---------- */
-.prompter { position: fixed; inset: 0; z-index: 50; background: var(--stage); color: var(--stage-fg); }
+.prompter { position: fixed; inset: 0; min-height: 100vh; min-height: 100lvh; z-index: 50; background: var(--stage); color: var(--stage-fg); }
+html.prompting, html.prompting body { background: var(--stage); }
+.safe-probe { position: fixed; top: 0; left: 0; width: 0; height: env(safe-area-inset-top, 0px); visibility: hidden; pointer-events: none; }
 .stage { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; scrollbar-width: none; outline: none; }
 .stage::-webkit-scrollbar { display: none; }
 .hud { position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
@@ -138,7 +140,7 @@ section h2 { margin: 0 0 10px; font-size: 12px; font-weight: 600; letter-spacing
 .chip.free { border-color: var(--free); color: var(--free); }
 .hud-btns { display: flex; gap: 8px; }
 .hbtn { background: rgba(244,241,232,.1); border: 1px solid rgba(244,241,232,.2); color: var(--stage-fg); border-radius: 8px; padding: 7px 12px; cursor: pointer; font-size: 14px; }
-.vstate { position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); font-family: var(--font-ui); font-size: 12.5px; padding: 3px 10px; border-radius: 999px; border: 1px solid; pointer-events: none; transition: opacity .3s; white-space: nowrap; }
+.vstate { position: absolute; bottom: calc(40px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); font-family: var(--font-ui); font-size: 12.5px; padding: 3px 10px; border-radius: 999px; border: 1px solid; pointer-events: none; transition: opacity .3s; white-space: nowrap; }
 .vstate.live { color: var(--tally); border-color: rgba(240,160,67,.5); }
 .vstate.free { color: var(--free); border-color: rgba(143,184,222,.5); }
 .vstate.idle { color: rgba(244,241,232,.55); border-color: rgba(244,241,232,.25); }
@@ -149,7 +151,7 @@ section h2 { margin: 0 0 10px; font-size: 12px; font-weight: 600; letter-spacing
 .heard span { direction: ltr; unicode-bidi: isolate; }
 .progress { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(244,241,232,.08); }
 .progress i { display: block; height: 100%; width: 0; background: var(--tally); transition: width .2s; }
-.toast { position: absolute; left: 50%; bottom: calc(40px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: rgba(20,22,25,.92); border: 1px solid rgba(244,241,232,.2); padding: 8px 14px; border-radius: 8px; font-family: var(--font-ui); font-size: 14px; font-variant-numeric: tabular-nums; transition: opacity .25s; pointer-events: none; max-width: calc(100% - 32px); text-align: center; }
+.toast { position: absolute; left: 50%; bottom: calc(78px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: rgba(20,22,25,.92); border: 1px solid rgba(244,241,232,.2); padding: 8px 14px; border-radius: 8px; font-family: var(--font-ui); font-size: 14px; font-variant-numeric: tabular-nums; transition: opacity .25s; pointer-events: none; max-width: calc(100% - 32px); text-align: center; }
 .toast.off { opacity: 0; }
 @media (prefers-reduced-motion: reduce) { .para, .para .done, .hud, .pads, .toast, .progress i, .vstate { transition: none; } }
 </style>
@@ -215,8 +217,8 @@ section h2 { margin: 0 0 10px; font-size: 12px; font-weight: 600; letter-spacing
         </div>
         <div class="row">
           <label for="lineAt">閱讀線位置</label><output id="lineOut" for="lineAt"></output>
-          <input type="range" id="lineAt" min="12" max="55" step="1">
-          <span class="hint">從畫面頂端算起。越靠上，眼睛越貼近鏡頭。</span>
+          <input type="range" id="lineAt" min="5" max="55" step="1">
+          <span class="hint">從動態島下方算起。越靠上，眼睛越貼近鏡頭。</span>
         </div>
         <div class="row">
           <label for="speed">捲動起始速度</label><output id="speedOut" for="speed"></output>
@@ -266,6 +268,7 @@ section h2 { margin: 0 0 10px; font-size: 12px; font-weight: 600; letter-spacing
   </div>
 </div>
 
+<div class="safe-probe" id="safeProbe" aria-hidden="true"></div>
 <div class="prompter" id="prompter" hidden>
   <div class="stage" id="stage" tabindex="0" aria-label="提詞畫面">
     <div class="track" id="track"></div>
@@ -309,7 +312,7 @@ section h2 { margin: 0 0 10px; font-size: 12px; font-weight: 600; letter-spacing
 
 好，我們開始。`;
 
-  const DEF = { mode: 'para', voice: true, size: 52, width: 92, gutter: 20, lineAt: 30, speed: 4, mirror: false, flipV: false, dim: true, showHeard: true };
+  const DEF = { mode: 'para', voice: true, size: 52, width: 92, gutter: 20, lineAt: 15, speed: 4, mirror: false, flipV: false, dim: true, showHeard: true };
   const store = {
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
@@ -317,6 +320,7 @@ section h2 { margin: 0 0 10px; font-size: 12px; font-weight: 600; letter-spacing
   let S = { ...DEF };
   try { Object.assign(S, JSON.parse(store.get('tp.settings') || '{}')); } catch (e) {}
   if (S.mode === 'voice') { S.mode = 'para'; S.voice = true; }   // 舊版設定轉換
+  if (!S.v) { if (S.lineAt === 30 || S.lineAt < 5) S.lineAt = 15; S.v = 2; }
   if (!['para', 'scroll'].includes(S.mode)) S.mode = 'para';
   const saved = store.get('tp.script');
   const MODE_NAME = { para: '逐段跳', scroll: '連續捲動' };
@@ -390,13 +394,14 @@ section h2 { margin: 0 0 10px; font-size: 12px; font-weight: 600; letter-spacing
   syncModeRadios();
 
   // shared track styling
-  function styleTrack(tr, h) {
+  function styleTrack(tr, h, top) {
+    if (top === undefined) top = h * S.lineAt / 100;
     tr.style.fontSize = S.size + 'px';
     tr.style.maxWidth = S.width + '%';
     tr.style.paddingLeft = `max(${S.gutter}px, env(safe-area-inset-left, 0px))`;
     tr.style.paddingRight = `max(${S.gutter}px, env(safe-area-inset-right, 0px))`;
-    tr.style.paddingTop = (h * S.lineAt / 100) + 'px';
-    tr.style.paddingBottom = (h * (100 - S.lineAt) / 100) + 'px';
+    tr.style.paddingTop = top + 'px';
+    tr.style.paddingBottom = Math.max(0, h - top) + 'px';
     tr.classList.toggle('mirror', S.mirror);
     tr.classList.toggle('dim', S.dim);
   }
@@ -454,9 +459,10 @@ section h2 { margin: 0 0 10px; font-size: 12px; font-weight: 600; letter-spacing
   let level = 0, paused = true, lastLevel = 4, acc = 0, lastT = 0, raf = 0;
   let wakeLock = null, hudT, toastT, escT = 0;
 
-  function lineY() { return stage.clientHeight * S.lineAt / 100; }
+  function safeTop() { return $('safeProbe').offsetHeight || 0; }
+  function lineY() { const t = safeTop(); return t + (stage.clientHeight - t) * S.lineAt / 100; }
   function layout() {
-    styleTrack(track, stage.clientHeight);
+    styleTrack(track, stage.clientHeight, lineY());
     stage.classList.toggle('flipv', S.flipV);
     guide.style.top = (S.flipV ? stage.clientHeight - lineY() : lineY()) + 'px';
     measure();
@@ -781,6 +787,7 @@ section h2 { margin: 0 0 10px; font-size: 12px; font-weight: 600; letter-spacing
     buildIndex(list);
     guide.classList.toggle('mirror', S.mirror);
     $('home').hidden = true; prompter.hidden = false;
+    document.documentElement.classList.add('prompting');
     document.documentElement.style.overflow = 'hidden';
     layout();
     cur = -1; stage.scrollTop = 0; setNow(0);
@@ -805,6 +812,7 @@ section h2 { margin: 0 0 10px; font-size: 12px; font-weight: 600; letter-spacing
     try { wakeLock && wakeLock.release(); } catch (e) {}
     wakeLock = null;
     prompter.hidden = true; $('home').hidden = false;
+    document.documentElement.classList.remove('prompting');
     document.documentElement.style.overflow = '';
     renderPreview();
     $('start').focus();
