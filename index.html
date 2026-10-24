@@ -53,7 +53,8 @@ button, input, textarea { font: inherit; color: inherit; }
 
 /* ---------- Home ---------- */
 .home { min-height: 100%; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 0; overflow-x: clip; }
-.wrap { max-width: 720px; margin: 0 auto; display: grid; gap: 22px; }
+.wrap { max-width: 720px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; }
+.wrap > * { min-width: 0; }
 .masthead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .masthead h1 { margin: 0; font-size: 26px; letter-spacing: .02em; text-wrap: balance; display: flex; align-items: center; gap: 10px; }
 .tally { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent); }
@@ -69,6 +70,8 @@ section h2 { margin: 0 0 10px; font-size: 12px; font-weight: 600; letter-spacing
 .pv-wrap { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 0 12px; }
 .pv { position: relative; width: min(100vw, 430px); left: 50%; transform: translateX(-50%); height: max(210px, 34vh); background: var(--stage); color: var(--stage-fg); overflow: hidden; }
 @media (min-width: 480px) { .pv { border-radius: 12px; } }
+.pv-inner { position: absolute; inset: 0; overflow: hidden; }
+.flipv { transform: scaleY(-1); }
 .pv-tag { position: absolute; right: 10px; bottom: 8px; font-size: 11px; letter-spacing: .08em; color: rgba(244,241,232,.5); background: rgba(5,6,7,.7); padding: 2px 7px; border-radius: 4px; }
 .pv .track { pointer-events: none; }
 
@@ -171,8 +174,10 @@ section h2 { margin: 0 0 10px; font-size: 12px; font-weight: 600; letter-spacing
       <h2 id="h-set">設定</h2>
       <div class="pv-wrap">
         <div class="pv" id="pv" aria-label="提詞畫面預覽">
-          <div class="track" id="pvTrack"></div>
-          <div class="guide" id="pvGuide" aria-hidden="true"></div>
+          <div class="pv-inner" id="pvInner">
+            <div class="track" id="pvTrack"></div>
+            <div class="guide" id="pvGuide" aria-hidden="true"></div>
+          </div>
           <span class="pv-tag">實際字級預覽</span>
         </div>
       </div>
@@ -215,6 +220,10 @@ section h2 { margin: 0 0 10px; font-size: 12px; font-weight: 600; letter-spacing
         <div class="row">
           <label for="mirror">左右鏡像</label><input type="checkbox" class="switch" id="mirror">
           <span class="hint">搭配提詞玻璃（分光鏡）使用時打開。</span>
+        </div>
+        <div class="row">
+          <label for="flipV">上下翻轉</label><input type="checkbox" class="switch" id="flipV">
+          <span class="hint">螢幕倒放或提詞玻璃需要上下顛倒時打開，可以和左右鏡像一起用。</span>
         </div>
         <div class="row">
           <label for="dim">其他段落變暗</label><input type="checkbox" class="switch" id="dim">
@@ -295,7 +304,7 @@ section h2 { margin: 0 0 10px; font-size: 12px; font-weight: 600; letter-spacing
 
 好，我們開始。`;
 
-  const DEF = { mode: 'para', voice: true, size: 52, width: 92, gutter: 20, lineAt: 30, speed: 4, mirror: false, dim: true, showHeard: true };
+  const DEF = { mode: 'para', voice: true, size: 52, width: 92, gutter: 20, lineAt: 30, speed: 4, mirror: false, flipV: false, dim: true, showHeard: true };
   const store = {
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
@@ -361,7 +370,7 @@ section h2 { margin: 0 0 10px; font-size: 12px; font-weight: 600; letter-spacing
   $('voiceHint').textContent = VOICE_HINT;
   $('voice').checked = !!S.voice;
   $('voice').addEventListener('change', () => { S.voice = $('voice').checked; $('modeHint').textContent = modeHint(); saveS(); renderPreview(); });
-  ['mirror', 'dim', 'showHeard'].forEach(id => {
+  ['mirror', 'flipV', 'dim', 'showHeard'].forEach(id => {
     const el = $(id); el.checked = !!S[id];
     el.addEventListener('change', () => { S[id] = el.checked; saveS(); renderPreview(); });
   });
@@ -402,6 +411,7 @@ section h2 { margin: 0 0 10px; font-size: 12px; font-weight: 600; letter-spacing
     const h = pv.clientHeight;
     styleTrack(pvTrack, h);
     pvGuide.style.top = (h * S.lineAt / 100) + 'px';
+    $('pvInner').classList.toggle('flipv', S.flipV);
     const first = pvTrack.firstChild;
     first.classList.add('now');
     if (S.voice) {
@@ -442,7 +452,8 @@ section h2 { margin: 0 0 10px; font-size: 12px; font-weight: 600; letter-spacing
   function lineY() { return stage.clientHeight * S.lineAt / 100; }
   function layout() {
     styleTrack(track, stage.clientHeight);
-    guide.style.top = lineY() + 'px';
+    stage.classList.toggle('flipv', S.flipV);
+    guide.style.top = (S.flipV ? stage.clientHeight - lineY() : lineY()) + 'px';
     measure();
   }
   function measure() { tops = paras.map(p => p.offsetTop); }
